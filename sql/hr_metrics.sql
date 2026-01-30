@@ -1,0 +1,149 @@
+
+-- QUESTIONS
+-- 1. What is the gender breakdown of employees in the company
+SELECT gender, count(*) AS count
+FROM hr
+WHERE age >=18 and termdate= '0000-00-00' 
+GROUP BY gender;
+
+-- 2. What is the race/ethnicity breakdown of employees in the company
+SELECT race, count(*) AS count
+FROM hr
+WHERE age >=18 and termdate = '0000-00-00' 
+GROUP BY race
+ORDER BY count(*) DESC;
+
+-- 3. What is the age distribution of employees in the company
+SELECT 
+	min(age) AS youngest,
+    max(age) AS oldest
+    FROM hr
+    WHERE age >=18 and termdate= '0000-00-00'; 
+    
+SELECT
+	CASE 
+	WHEN age >=18 AND age <=26 THEN '18-26'
+	WHEN age >=27 AND age <=36 THEN '27-36'
+	WHEN age >=37 AND age <=46 THEN '37-46'
+	WHEN age >=47 AND age <=56 THEN '47-56'
+    WHEN age >=57 AND age <=66 THEN '57-66'
+	ELSE '67+'
+END AS age_group,
+count(*) AS count
+FROM hr
+WHERE age >=18 and termdate = '0000-00-00' 
+GROUP BY age_group
+ORDER BY age_group;
+
+SELECT
+	CASE 
+	WHEN age >=18 AND age <=26 THEN '18-26'
+	WHEN age >=27 AND age <=36 THEN '27-36'
+	WHEN age >=37 AND age <=46 THEN '37-46'
+	WHEN age >=47 AND age <=56 THEN '47-56'
+    WHEN age >=57 AND age <=66 THEN '57-66'
+	ELSE '67+'
+END AS age_group, gender,
+count(*) AS count
+FROM hr
+WHERE age >=18 and termdate = '0000-00-00' 
+GROUP BY age_group, gender
+ORDER BY age_group, gender;
+
+-- 5. How many employees work at headquarters versus remote location
+SELECT location, count(*) AS count
+FROM hr
+WHERE age >=18 and termdate = '0000-00-00' AND age >= 18;
+
+
+-- 6. What is the average length of employment for employees who have been terminated?
+SELECT
+	round(avg(datediff(termdate, hire_date))/365,0) AS avg_length_emp
+FROM hr
+WHERE termdate <= curdate() AND termdate <> '0000-00-00';
+
+
+
+
+-- 6. How does the gender distribution vary across departments and job titles
+SELECT department, gender, COUNT(*) AS count
+FROM hr
+WHERE age >=18 and termdate = '0000-00-00' 
+GROUP BY department, gender
+ORDER BY department;
+
+-- What is the distribution of Job titles across the company?
+SELECT jobtitle, COUNT(*) AS count
+FROM hr
+WHERE age >=18 and termdate = '0000-00-00'
+GROUP BY jobtitle
+ORDER BY jobtitle DESC;
+
+-- What department has the highest turnover rate
+SELECT department,
+	total_count,
+    terminated_count,
+    terminated_count/total_count AS termination_rate
+FROM (
+	SELECT department,
+    count(*) AS total_count,
+    SUM(CASE WHEN termdate<> '0000-00-0' AND termdate <= curdate() THEN 1 ELSE 0 END) AS terminated_count
+	FROM hr
+	WHERE age >=18
+	GROUP BY department
+	) AS subquery
+ORDER BY termination_rate DESC;
+
+-- 9. What is the distribution of employees across locations by city and State?
+SELECT location_state, COUNT(*) as count
+FROM hr
+WHERE age >=18 and termdate = '0000-00-00'
+GROUP BY location_state
+ORDER BY count DESC;
+
+-- 10. How has the company's employee count changed over time based on hire and term dates
+SELECT 
+	year,
+    hires,
+    terminations,
+    hires - terminations AS net_change,
+	round((hires - terminations)/hires * 100,2) AS net_change_percent
+FROM(
+	SELECT YEAR(hire_date) AS year,
+    count(*) AS hires,
+    SUM(CASE WHEN termdate <> '0000-00-00' AND termdate <= curdate() THEN 1 ELSE 0 end) AS terminations
+    FROM hr
+    WHERE age >=18
+    GROUP BY year(hire_date)
+    ) AS subquery
+    ORDER BY year ASC;
+
+-- 11. What is the tenure distribution for each department
+SELECT department,round(avg(datediff(termdate, hire_date)/365),0) AS avg_tenure
+FROM hr
+WHERE termdate <= curdate() AND termdate<> '0000-00-00' AND age >=18
+GROUP BY department;
+
+
+-- Average Tenure
+SELECT 
+    ROUND(AVG(TIMESTAMPDIFF(YEAR, hire_date, CURDATE())), 0) AS avg_tenure_years
+FROM hr
+WHERE hire_date IS NOT NULL;
+
+-- Attrition rate using employees headcount
+WITH active_employees AS (
+    SELECT COUNT(*) AS avg_headcount
+    FROM hr
+    WHERE hire_date <= '2023-12-31'
+      AND (termination_date IS NULL OR termination_date >= '2023-01-01')
+),
+employees_left AS (
+    SELECT COUNT(*) AS leavers
+    FROM hr
+    WHERE termination_date BETWEEN '2023-01-01' AND '2023-12-31'
+)
+SELECT 
+    ROUND((l.leavers / a.avg_headcount) * 100, 2) AS attrition_percentage
+FROM active_employees a
+JOIN employees_left l;
